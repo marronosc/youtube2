@@ -691,30 +691,28 @@ def seo():
 
 @app.route('/report/<keyword>')
 def generate_report(keyword):
-    videos = search_videos(keyword, max_results=20)
-    
-    if videos:
-        avg_views = sum(video['views'] for video in videos) / len(videos)
-        avg_likes = sum(video['likes'] for video in videos) / len(videos)
-        avg_comments = sum(video['comments'] for video in videos) / len(videos)
-        avg_duration = calculate_average_duration(videos)
-        unique_channels_count = count_unique_channels(videos)
-        channel_stats = get_channel_stats(videos)
-        last_6_months, last_year, older_than_year = categorize_videos_by_age(videos)
-        total_stats = calculate_total_stats(videos)
-    else:
-        avg_views = avg_likes = avg_comments = 0
-        avg_duration = timedelta()
-        unique_channels_count = 0
-        channel_stats = {}
-        last_6_months = last_year = older_than_year = []
-        total_stats = {'total_views': 0, 'total_likes': 0, 'total_comments': 0}
+    try:
+        videos = search_videos(keyword, max_results=20)
+        
+        if videos:
+            avg_views = sum(video['views'] for video in videos) / len(videos)
+            avg_likes = sum(video['likes'] for video in videos) / len(videos)
+            avg_comments = sum(video['comments'] for video in videos) / len(videos)
+            avg_duration = calculate_average_duration(videos)
+            unique_channels_count = count_unique_channels(videos)
+            channel_stats = get_channel_stats(videos)
+            last_6_months, last_year, older_than_year = categorize_videos_by_age(videos)
+            total_stats = calculate_total_stats(videos)
+        else:
+            avg_views = avg_likes = avg_comments = 0
+            avg_duration = timedelta()
+            unique_channels_count = 0
+            channel_stats = {}
+            last_6_months = last_year = older_than_year = []
+            total_stats = {'total_views': 0, 'total_likes': 0, 'total_comments': 0}
 
-    # Modificación importante: usamos directamente render_template_string en lugar de Template
-    # Esto evita problemas con la configuración del entorno de Jinja2
-
-    # Cargar la plantilla como un string
-    return render_template_string('''
+        # Usar directamente render_template_string con todos los datos necesarios
+        return render_template_string('''
 <!DOCTYPE html>
 <html lang="es">
 
@@ -830,9 +828,9 @@ def generate_report(keyword):
 
         th,
         td {
+            border: 1px
             border: 1px solid #ddd;
             padding: 12px;
-            text-align
             text-align: left;
         }
 
@@ -899,19 +897,19 @@ def generate_report(keyword):
             <div class="stats-grid">
                 <div class="stat-box">
                     <h4>Promedio de Visualizaciones</h4>
-                    {{ avg_views_videos | format_number }}
+                    {{ format_number(avg_views_videos) }}
                 </div>
                 <div class="stat-box">
                     <h4>Promedio de Me gustas</h4>
-                    {{ avg_likes_videos | format_number }}
+                    {{ format_number(avg_likes_videos) }}
                 </div>
                 <div class="stat-box">
                     <h4>Promedio de Comentarios</h4>
-                    {{ avg_comments_videos | format_number }}
+                    {{ format_number(avg_comments_videos) }}
                 </div>
                 <div class="stat-box">
                     <h4>Promedio de Duración</h4>
-                    {{ avg_duration | format_duration }}
+                    {{ format_duration(avg_duration) }}
                 </div>
             </div>
             <h3>Suma Total de Resultados</h3>
@@ -922,15 +920,15 @@ def generate_report(keyword):
                 </div>
                 <div class="stat-box sum-stat-box">
                     <h4>Total de Visualizaciones</h4>
-                    {{ total_stats.total_views | format_number }}
+                    {{ format_number(total_stats.total_views) }}
                 </div>
                 <div class="stat-box sum-stat-box">
                     <h4>Total de Me gustas</h4>
-                    {{ total_stats.total_likes | format_number }}
+                    {{ format_number(total_stats.total_likes) }}
                 </div>
                 <div class="stat-box sum-stat-box">
                     <h4>Total de Comentarios</h4>
-                    {{ total_stats.total_comments | format_number }}
+                    {{ format_number(total_stats.total_comments) }}
                 </div>
             </div>
         </div>
@@ -951,11 +949,11 @@ def generate_report(keyword):
                     <div class="video-info">
                         <h3><a href="{{ video.video_url }}" target="_blank">{{ video.title }}</a></h3>
                         <p><strong>Canal:</strong> {{ video.channel_title }}</p>
-                        <p><strong>Visualizaciones:</strong> {{ video.views | format_number }}</p>
-                        <p><strong>Me gustas:</strong> {{ video.likes | format_number }}</p>
-                        <p><strong>Comentarios:</strong> {{ video.comments | format_number }}</p>
-                        <p><strong>Duración:</strong> {{ video.duration | format_duration }}</p>
-                        <p><strong>Publicado:</strong> {{ video.published_at | format_date }}</p>
+                        <p><strong>Visualizaciones:</strong> {{ format_number(video.views) }}</p>
+                        <p><strong>Me gustas:</strong> {{ format_number(video.likes) }}</p>
+                        <p><strong>Comentarios:</strong> {{ format_number(video.comments) }}</p>
+                        <p><strong>Duración:</strong> {{ format_duration(video.duration) }}</p>
+                        <p><strong>Publicado:</strong> {{ format_date(video.published_at) }}</p>
                         <p><strong>Día de Publicación:</strong> {{ video.day_of_week }}</p>
                         <p><strong>Categoría:</strong> {{ video.category }}</p>
                     </div>
@@ -989,9 +987,9 @@ def generate_report(keyword):
                         </div>
                     </td>
                     <td>{{ stats.videos }}</td>
-                    <td>{{ stats.views | format_number }}</td>
-                    <td>{{ stats.likes | format_number }}</td>
-                    <td>{{ stats.comments | format_number }}</td>
+                    <td>{{ format_number(stats.views) }}</td>
+                    <td>{{ format_number(stats.likes) }}</td>
+                    <td>{{ format_number(stats.comments) }}</td>
                 </tr>
                 {% endfor %}
             </table>
@@ -1020,7 +1018,7 @@ def generate_report(keyword):
                             <a href="{{ video.video_url }}" target="_blank">{{ video.title }}</a>
                         </div>
                     </td>
-                    <td>{{ video.views | format_number }}</td>
+                    <td>{{ format_number(video.views) }}</td>
                 </tr>
                 {% endfor %}
             </table>
@@ -1039,7 +1037,7 @@ def generate_report(keyword):
                             <a href="{{ video.video_url }}" target="_blank">{{ video.title }}</a>
                         </div>
                     </td>
-                    <td>{{ video.views | format_number }}</td>
+                    <td>{{ format_number(video.views) }}</td>
                 </tr>
                 {% endfor %}
             </table>
@@ -1058,7 +1056,7 @@ def generate_report(keyword):
                             <a href="{{ video.video_url }}" target="_blank">{{ video.title }}</a>
                         </div>
                     </td>
-                    <td>{{ video.views | format_number }}</td>
+                    <td>{{ format_number(video.views) }}</td>
                 </tr>
                 {% endfor %}
             </table>
@@ -1069,47 +1067,85 @@ def generate_report(keyword):
 </body>
 
 </html>
-   ''', 
-    keyword=keyword,
-    videos=videos,
-    avg_views_videos=avg_views,
-    avg_likes_videos=avg_likes,
-    avg_comments_videos=avg_comments,
-    avg_duration=avg_duration,
-    unique_channels_count=unique_channels_count,
-    channel_stats=channel_stats,
-    last_6_months=last_6_months,
-    last_year=last_year,
-    older_than_year=older_than_year,
-    total_stats=total_stats,
-    format_number=format_number,
-    format_date=format_date,
-    format_duration=format_duration
-    )
-    
-    # Configurar filtros para el template
-    template = Template(template_content)
-    template.environment = Environment()
-    template.environment.filters['format_number'] = format_number
-    template.environment.filters['format_date'] = format_date
-    template.environment.filters['format_duration'] = format_duration
-    
-    data = {
-        'keyword': keyword,
-        'videos': videos,
-        'avg_views_videos': avg_views,
-        'avg_likes_videos': avg_likes,
-        'avg_comments_videos': avg_comments,
-        'avg_duration': avg_duration,
-        'unique_channels_count': unique_channels_count,
-        'channel_stats': channel_stats,
-        'last_6_months': last_6_months,
-        'last_year': last_year,
-        'older_than_year': older_than_year,
-        'total_stats': total_stats
-    }
-    
-    return template.render(**data)
+        ''',
+        keyword=keyword,
+        videos=videos,
+        avg_views_videos=avg_views,
+        avg_likes_videos=avg_likes,
+        avg_comments_videos=avg_comments,
+        avg_duration=avg_duration,
+        unique_channels_count=unique_channels_count,
+        channel_stats=channel_stats,
+        last_6_months=last_6_months,
+        last_year=last_year,
+        older_than_year=older_than_year,
+        total_stats=total_stats,
+        format_number=format_number,
+        format_date=format_date,
+        format_duration=format_duration
+        )
+    except Exception as e:
+        # Capturar cualquier error y mostrar un mensaje amigable
+        error_message = f"Error al generar el informe: {str(e)}"
+        print(error_message)  # Esto aparecerá en los logs
+        
+        # Devolver una página de error amigable
+        return render_template_string('''
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Error - YouTube SEO Tools</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        line-height: 1.6;
+                        padding: 20px;
+                        max-width: 800px;
+                        margin: 0 auto;
+                        text-align: center;
+                    }
+                    .error-container {
+                        background-color: #f8d7da;
+                        color: #721c24;
+                        padding: 20px;
+                        border-radius: 5px;
+                        margin: 20px 0;
+                    }
+                    .back-link {
+                        display: inline-block;
+                        margin-top: 20px;
+                        padding: 10px 20px;
+                        background-color: #f8f9fa;
+                        color: #333;
+                        text-decoration: none;
+                        border-radius: 5px;
+                        border: 1px solid #ddd;
+                    }
+                    .error-details {
+                        background-color: #f8f9fa;
+                        padding: 10px;
+                        border-radius: 5px;
+                        margin-top: 20px;
+                        text-align: left;
+                        font-family: monospace;
+                        white-space: pre-wrap;
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>Error al Generar el Informe</h1>
+                <div class="error-container">
+                    Se ha producido un error al procesar tu solicitud. Por favor, intenta nuevamente o prueba con una palabra clave diferente.
+                </div>
+                <div class="error-details">
+                    {{ error }}
+                </div>
+                <a href="/seo" class="back-link">← Volver al buscador</a>
+            </body>
+            </html>
+        ''', error=error_message)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))  # Usar el puerto asignado por Render o 8080 por defecto
