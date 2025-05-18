@@ -710,8 +710,11 @@ def generate_report(keyword):
         last_6_months = last_year = older_than_year = []
         total_stats = {'total_views': 0, 'total_likes': 0, 'total_comments': 0}
 
+    # Modificación importante: usamos directamente render_template_string en lugar de Template
+    # Esto evita problemas con la configuración del entorno de Jinja2
+
     # Cargar la plantilla como un string
-    template_content = '''
+    return render_template_string('''
 <!DOCTYPE html>
 <html lang="es">
 
@@ -1066,7 +1069,23 @@ def generate_report(keyword):
 </body>
 
 </html>
-    '''
+   ''', 
+    keyword=keyword,
+    videos=videos,
+    avg_views_videos=avg_views,
+    avg_likes_videos=avg_likes,
+    avg_comments_videos=avg_comments,
+    avg_duration=avg_duration,
+    unique_channels_count=unique_channels_count,
+    channel_stats=channel_stats,
+    last_6_months=last_6_months,
+    last_year=last_year,
+    older_than_year=older_than_year,
+    total_stats=total_stats,
+    format_number=format_number,
+    format_date=format_date,
+    format_duration=format_duration
+    )
     
     # Configurar filtros para el template
     template = Template(template_content)
