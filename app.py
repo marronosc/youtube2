@@ -242,6 +242,55 @@ def calculate_total_stats(videos):
         'total_likes': sum(video['likes'] for video in videos),
         'total_comments': sum(video['comments'] for video in videos)
     }
+    
+def check_channel_videos_in_results(keyword, channel_id, max_results=100):
+    channel_videos = []
+    next_page_token = None
+    results_count = 0
+    
+    try:
+        while results_count < max_results:
+            # Número de resultados a buscar en cada iteración (máximo 50 por consulta a la API)
+            batch_size = min(50, max_results - results_count)
+            
+            # Consultar la API de YouTube
+            request = youtube.search().list(
+                q=keyword,
+                type='video',
+                part='id,snippet',
+                maxResults=batch_size,
+                pageToken=next_page_token
+            )
+            response = request.execute()
+            
+            # Verificar cada resultado
+            for item in response['items']:
+                results_count += 1
+                position = results_count  # Posición en los resultados
+                
+                # Si el video pertenece al canal especificado
+                if item['snippet']['channelId'] == channel_id:
+                    video_id = item['id']['videoId']
+                    
+                    # Obtener detalles adicionales del video
+                    video_details = {
+                        'position': position,
+                        'title': item['snippet']['title'],
+                        'channel_title': item['snippet']['channelTitle'],
+                        'video_url': f"https://www.youtube.com/watch?v={video_id}",
+                        'thumbnail_url': item['snippet']['thumbnails']['medium']['url'],
+                        'published_at': item['snippet']['publishedAt']
+                    }
+                    channel_videos.append(video_details)
+            
+            # Verificar si hay más páginas de resultados
+            next_page_token = response.get('nextPageToken')
+            if not next_page_token or results_count >= max_results:
+                break
+    except Exception as e:
+        logging.error(f"Error al verificar videos del canal: {str(e)}")
+    
+    return channel_videos    
 
 # Rutas para la aplicación
 @app.route('/')
@@ -408,6 +457,12 @@ def index():
                     <h2>Análisis SEO YouTube</h2>
                     <p>Analiza los resultados de búsqueda en YouTube para una palabra clave específica y obtén estadísticas detalladas.</p>
                     <a href="/seo" class="button">Ir al Analizador SEO</a>
+                </div>
+                
+                <div class="card tool-card">
+                    <h2>Verificador de Posición de Canal</h2>
+                    <p>Comprueba si los videos de un canal específico aparecen entre los primeros 100 resultados de búsqueda para una palabra clave.</p>
+                    <a href="/keyword-position" class="button">Ir al Verificador</a>
                 </div>
             </div>
         </div>
@@ -1146,6 +1201,242 @@ def generate_report(keyword):
             </body>
             </html>
         ''', error=error_message)
+        
+@app.route('/keyword-position', methods=['GET', 'POST'])
+def keyword_position():
+    result = None
+    channel_videos = []
+    keyword = ""
+    channel_id = ""
+    channel_title = ""
+    stats = {
+        "top_10": 0,
+        "top_20": 0,
+        "top_50": 0,
+        "top_100": 0
+    }
+    
+    if request.method == 'POST':
+        keyword = request.form['keyword']
+        channel_id = request.form['channel_id']
+        
+        # Si el usuario ingresa una URL en lugar de un ID, extraer el ID
+        if "youtube.com" in channel_id or "youtu.be" in channel_id:
+            channel_id = obtener_id_canal(channel_id)
+        
+        # Buscar los primeros 100 resultados y verificar si alguno pertenece al canal
+        channel_videos = check_channel_videos_in_results(keyword, channel_id)
+        
+        # Si encontramos videos, obtener el título del canal
+        if channel_videos:
+            channel_title = channel_videos[0]['channel_title']
+        
+        result = True  # Indica que se realizó la búsqueda
+        
+        # Calcular estadísticas
+        for video in channel_videos:
+            position = video['position']
+            if position <= 10:
+                stats["top_10"] += 1
+            if position <= 20:
+                stats["top_20"] += 1
+            if position <= 50:
+                stats["top_50"] += 1
+            if position <= 100:
+                stats["top_100"] += 1
+    
+    return render_template_string('''
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Posición de Canal en YouTube</title>
+        <style>
+            :root {
+                --primary-color: #FF0000;
+                --secondary-color: #282828;
+                --text-color: #333333;
+                --background-color: #F9F9F9;
+                --card-background: #FFFFFF;
+                --shadow-color: rgba(0, 0, 0, 0.1);
+            }
+            
+            body {
+                font-family: 'Roboto', Arial, sans-serif;
+                background-color: var(--background-color);
+                color: var(--text-color);
+                line-height: 1.6;
+                padding: 20px;
+            }
+            
+            .container {
+                max-width: 800px;
+                margin: 0 auto;
+                background-color: var(--card-background);
+                border-radius: 8px;
+                box-shadow: 0 4px 6px var(--shadow-color);
+                padding: 20px;
+            }
+            
+            h1 {
+                color: var(--secondary-color);
+                text-align: center;
+            }
+            
+            form {
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+            
+            input[type="text"] {
+                padding: 10px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+            
+            button {
+                background-color: var(--primary-color);
+                color: white;
+                border: none;
+                padding: 10px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: bold;
+            }
+            
+            .results {
+                margin-top: 30px;
+            }
+            
+            .summary-box {
+                background-color: #f5f5f5;
+                padding: 15px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+            }
+            
+            .summary-title {
+                font-weight: bold;
+                margin-bottom: 10px;
+                font-size: 1.2em;
+            }
+            
+            .summary-stats {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            .stat-item {
+                background-color: white;
+                padding: 8px 15px;
+                border-radius: 4px;
+                box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+            }
+            
+            .video-list {
+                margin-top: 25px;
+            }
+            
+            .video-card {
+                display: flex;
+                align-items: center;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 10px;
+                margin-bottom: 15px;
+            }
+            
+            .video-thumbnail {
+                width: 120px;
+                height: 68px;
+                margin-right: 15px;
+                border-radius: 4px;
+                object-fit: cover;
+            }
+            
+            .video-info {
+                flex: 1;
+            }
+            
+            .position {
+                font-size: 1.5rem;
+                font-weight: bold;
+                color: var(--primary-color);
+            }
+            
+            .no-results {
+                text-align: center;
+                padding: 30px;
+                color: #666;
+            }
+            
+            .home-link {
+                display: inline-block;
+                margin: 20px 0;
+                color: #333;
+                text-decoration: none;
+                font-weight: bold;
+            }
+            
+            .home-link:hover {
+                text-decoration: underline;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Posición de Canal en Resultados de YouTube</h1>
+            
+            <form method="post">
+                <input type="text" name="keyword" placeholder="Palabra clave a buscar" required value="{{ keyword }}">
+                <input type="text" name="channel_id" placeholder="ID o URL del canal de YouTube" required value="{{ channel_id }}">
+                <button type="submit">Buscar Posiciones</button>
+            </form>
+            
+            {% if result is not none %}
+                <div class="results">
+                    {% if channel_videos %}
+                        <div class="summary-box">
+                            <div class="summary-title">Resumen de posiciones para el canal "{{ channel_title }}"</div>
+                            <div class="summary-stats">
+                                <div class="stat-item">{{ stats.top_10 }} vídeos entre los 10 primeros</div>
+                                <div class="stat-item">{{ stats.top_20 }} vídeos entre los 20 primeros</div>
+                                <div class="stat-item">{{ stats.top_50 }} vídeos entre los 50 primeros</div>
+                                <div class="stat-item">{{ stats.top_100 }} vídeos entre los 100 primeros</div>
+                            </div>
+                        </div>
+                        
+                        <div class="video-list">
+                            <h2>Videos encontrados ({{ channel_videos|length }})</h2>
+                            
+                            {% for video in channel_videos %}
+                                <div class="video-card">
+                                    <img src="{{ video.thumbnail_url }}" alt="Miniatura" class="video-thumbnail">
+                                    <div class="video-info">
+                                        <div class="position">Posición #{{ video.position }}</div>
+                                        <h3><a href="{{ video.video_url }}" target="_blank">{{ video.title }}</a></h3>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="no-results">
+                            <h2>No se encontraron videos del canal</h2>
+                            <p>No se encontró ningún video del canal especificado entre los primeros 100 resultados para la palabra clave "{{ keyword }}".</p>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+            
+            <a href="/" class="home-link">← Volver a la página principal</a>
+        </div>
+    </body>
+    </html>
+    ''', result=result, channel_videos=channel_videos, keyword=keyword, channel_id=channel_id, stats=stats, channel_title=channel_title)        
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))  # Usar el puerto asignado por Render o 8080 por defecto
